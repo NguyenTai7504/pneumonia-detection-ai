@@ -1,0 +1,29 @@
+Core Deep Learning Libraries
+
+torch
+torchvision
+torchaudio
+
+Image Processing & Visualization
+
+opencv-python
+matplotlib
+pillow
+numpy
+pandas
+seaborn
+
+Explainable AI (Grad-CAM)
+
+grad-cam
+torchcam
+
+Web Application Framework
+
+streamlit
+
+Utilities
+
+tqdm
+scikit-learn
+requests
