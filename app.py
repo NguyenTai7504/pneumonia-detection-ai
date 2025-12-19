@@ -176,7 +176,42 @@ st.markdown("""
 
 # --- 3. LOAD MODEL ---
 @st.cache_resource
+def download_model_from_gdrive():
+    """Tự động tải model từ Google Drive nếu chưa có"""
+    model_path = 'models/final_pneumonia_model.pth'
+    
+    if os.path.exists(model_path):
+        return model_path
+    
+    # Tạo thư mục models
+    os.makedirs('models', exist_ok=True)
+    
+    # Google Drive File ID
+    file_id = "16apZUHgANtYPL6nKeqz8RlgG-1JFkJ9u"
+    url = f"https://drive.google.com/uc?id={file_id}"
+    
+    try:
+        import gdown
+        st.info("📥 Đang tải model từ Google Drive... (khoảng 90MB, vui lòng đợi)")
+        gdown.download(url, model_path, quiet=False)
+        st.success("✅ Đã tải model thành công!")
+        return model_path
+    except ImportError:
+        st.error("❌ Thiếu thư viện gdown. Chạy: pip install gdown")
+        return None
+    except Exception as e:
+        st.error(f"❌ Lỗi khi tải model: {e}")
+        return None
+
 def load_model():
+    # Tự động tải model nếu chưa có
+    model_path = download_model_from_gdrive()
+    
+    if not model_path:
+        st.error(f"❌ Không tìm thấy file model")
+        st.info("Hãy đặt file .pth vào thư mục `models/` hoặc cùng thư mục với file app.py")
+        return None
+    
     # Khởi tạo kiến trúc ResNet50
     model = models.resnet50(weights=None)
     num_ftrs = model.fc.in_features
@@ -186,24 +221,6 @@ def load_model():
         nn.Dropout(0.5),
         nn.Linear(256, 2)
     )
-    
-    # Tìm file model (Ưu tiên thư mục models/)
-    model_paths = [
-        'models/final_pneumonia_model.pth',  # Đường dẫn chuẩn
-        'final_pneumonia_model.pth',  # Thư mục gốc
-        '/content/drive/MyDrive/Pneumonia_ResNet50_Project/FineTuning_Phase/best_finetuned_checkpoint.pth'  # Colab
-    ]
-    
-    model_path = None
-    for path in model_paths:
-        if os.path.exists(path):
-            model_path = path
-            break
-    
-    if not model_path:
-        st.error(f"❌ Không tìm thấy file model")
-        st.info("Hãy đặt file .pth vào thư mục `models/` hoặc cùng thư mục với file app.py")
-        return None
 
     # Load trọng số (map_location='cpu' để chạy mọi nơi)
     try:

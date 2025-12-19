@@ -8,6 +8,7 @@ Image Processing & Visualization
 
 opencv-python
 matplotlib
+gdown
 pillow
 numpy
 pandas
