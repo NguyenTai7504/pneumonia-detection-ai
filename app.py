@@ -218,12 +218,21 @@ def download_model_from_gdrive(model_name='pneumonia'):
     
     try:
         import gdown
-        status_placeholder.info(f"📥 Đang tải {model_name} model từ Google Drive... ({config['size']}, vui lòng đợi)")
-        gdown.download(url, model_path, quiet=False)
-        status_placeholder.success(f"✅ Đã tải {model_name} model thành công!")
         
-        # Ẩn thông báo sau 15 giây
-        time.sleep(15)
+        # Hiển thị đang tải
+        with status_placeholder.container():
+            st.info(f"📥 Đang tải {model_name} model từ Google Drive... ({config['size']}, vui lòng đợi)")
+        
+        # Download (output sẽ không hiển thị trên UI)
+        gdown.download(url, model_path, quiet=True)
+        
+        # Hiển thị thành công
+        status_placeholder.empty()
+        with status_placeholder.container():
+            st.success(f"✅ Đã tải {model_name} model thành công!")
+        
+        # Giữ thông báo trong 5 giây để người dùng thấy
+        time.sleep(5)
         status_placeholder.empty()
         
         return model_path
