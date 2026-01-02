@@ -10,8 +10,8 @@ import os
 
 # Import Grad-CAM từ utils (đã tối ưu)
 from utils.gradcam import GradCAM, show_cam_on_image
-# Import Image Validator (kiểm tra ảnh trùng và X-ray)
-from utils.image_validator import ImageValidator, load_xray_detector_model, is_xray_image
+# Import X-ray detector
+from utils.image_validator import load_xray_detector_model, is_xray_image
 
 # --- 2. CẤU HÌNH HỆ THỐNG ---
 st.set_page_config(
@@ -259,10 +259,6 @@ model = load_model()  # Pneumonia detection model
 xray_detector_path = download_model_from_gdrive('xray_detector')
 xray_detector = load_xray_detector_model(xray_detector_path) if xray_detector_path else None
 
-# Initialize image validator
-if 'image_validator' not in st.session_state:
-    st.session_state.image_validator = ImageValidator()
-
 # --- 4. HÀM XỬ LÝ ẢNH ---
 def process_image(image):
     transform = transforms.Compose([
@@ -358,14 +354,8 @@ with col_left:
             image = Image.open(st.session_state['sample_image']).convert('RGB')
     
     if image:
-        # BƯỚC 1: Kiểm tra ảnh trùng lặp
-        is_duplicate = st.session_state.image_validator.check_duplicate(image)
-        if is_duplicate:
-            st.warning("⚠️ **Ảnh này đã được phân tích trước đó!** Vui lòng chọn ảnh khác.")
-            image = None  # Ngăn không cho phân tích
-        
-        # BƯỚC 2: Kiểm tra có phải X-ray phổi không
-        if image and xray_detector:
+        # Kiểm tra có phải X-ray phổi không
+        if xray_detector:
             with st.spinner("🔍 Đang kiểm tra loại ảnh..."):
                 is_xray, xray_confidence = is_xray_image(xray_detector, image, threshold=0.7)
             
