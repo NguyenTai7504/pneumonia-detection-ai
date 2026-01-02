@@ -184,18 +184,18 @@ def download_model_from_gdrive(model_name='pneumonia'):
     Args:
         model_name: 'pneumonia' hoặc 'xray_detector'
     """
-    import time
-    
     models_config = {
         'pneumonia': {
             'path': 'models/final_pneumonia_model.pth',
             'file_id': '16apZUHgANtYPL6nKeqz8RlgG-1JFkJ9u',
-            'size': '90MB'
+            'size': '90MB',
+            'display_name': 'Model phát hiện viêm phổi'
         },
         'xray_detector': {
             'path': 'models/xray_detector_resnet18_v2_BEST.pth',
             'file_id': '1UIGOdjrC5KBgmQPeBmu1YZdK32bi4b9Y',
-            'size': '45MB'
+            'size': '45MB',
+            'display_name': 'Model kiểm tra X-ray'
         }
     }
     
@@ -212,51 +212,27 @@ def download_model_from_gdrive(model_name='pneumonia'):
     file_id = config['file_id']
     url = f"https://drive.google.com/uc?id={file_id}"
     
-    # Tạo placeholder cho thông báo
-    status_placeholder = st.empty()
-    
     try:
         import gdown
         
-        # Hiển thị đang tải
-        with status_placeholder.container():
-            st.info(f"📥 Đang tải {model_name} model từ Google Drive... ({config['size']}, vui lòng đợi)")
-        
-        # Download (output sẽ không hiển thị trên UI)
-        gdown.download(url, model_path, quiet=True)
-        
-        # Lưu timestamp download xong
-        download_key = f'{model_name}_download_time'
-        st.session_state[download_key] = time.time()
-        
-        # Hiển thị thành công với countdown và nút đóng
-        while True:
-            elapsed = time.time() - st.session_state[download_key]
-            remaining = int(90 - elapsed)
+        # Sử dụng st.status cho hiển thị bất đồng bộ
+        with st.status(f"📥 Đang tải {config['display_name']}...", expanded=True) as status:
+            st.write(f"📦 Kích thước: {config['size']}")
+            st.write("⏳ Vui lòng đợi trong giây lát...")
             
-            # Nếu hết thời gian hoặc user đóng thông báo
-            if remaining <= 0 or st.session_state.get(f'{model_name}_dismissed', False):
-                status_placeholder.empty()
-                break
+            # Download model
+            gdown.download(url, model_path, quiet=True)
             
-            # Hiển thị thông báo với countdown và nút đóng
-            with status_placeholder.container():
-                col1, col2 = st.columns([4, 1])
-                with col1:
-                    st.success(f"✅ Đã tải {model_name} model thành công! (Tự động ẩn sau {remaining}s)")
-                with col2:
-                    if st.button("✕ Đóng", key=f'close_{model_name}_{remaining}'):
-                        st.session_state[f'{model_name}_dismissed'] = True
-                        st.rerun()
-            
-            time.sleep(1)
+            # Cập nhật trạng thái thành công
+            status.update(label=f"✅ Đã tải {config['display_name']} thành công!", state="complete", expanded=False)
         
         return model_path
+        
     except ImportError:
-        status_placeholder.error("❌ Thiếu thư viện gdown. Chạy: pip install gdown")
+        st.error("❌ Thiếu thư viện gdown. Chạy: pip install gdown")
         return None
     except Exception as e:
-        status_placeholder.error(f"❌ Lỗi khi tải {model_name} model: {e}")
+        st.error(f"❌ Lỗi khi tải {config['display_name']}: {e}")
         return None
 
 def load_model():
