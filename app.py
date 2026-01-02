@@ -177,10 +177,9 @@ st.markdown("""
 """, unsafe_allow_html=True)
 
 # --- 3. LOAD MODEL ---
-@st.cache_resource
 def download_model_from_gdrive(model_name='pneumonia'):
     """
-    Tự động tải model từ Google Drive nếu chưa có
+    Tự động tải model từ Google Drive nếu chưa có (không cache để có thể dùng widgets)
     
     Args:
         model_name: 'pneumonia' hoặc 'xray_detector'
