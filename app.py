@@ -357,7 +357,7 @@ with col_left:
         # Kiểm tra có phải X-ray phổi không
         if xray_detector:
             with st.spinner("🔍 Đang kiểm tra loại ảnh..."):
-                is_xray, xray_confidence = is_xray_image(xray_detector, image, threshold=0.7)
+                is_xray, xray_confidence = is_xray_image(xray_detector, image, threshold=0.5)
             
             if not is_xray:
                 st.error(f"""

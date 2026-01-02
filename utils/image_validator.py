@@ -98,21 +98,20 @@ def load_xray_detector_model(model_path='models/xray_detector_resnet18_v2_BEST.p
         return None
 
 
-def is_xray_image(model, image, threshold=0.7):
+def is_xray_image(model, image, threshold=0.5):
     """
     Kiểm tra ảnh có phải X-ray phổi không
     
     Args:
         model: Model xray detector đã load
         image: PIL Image
-        threshold: Ngưỡng confidence (0-1), mặc định 0.7
+        threshold: Ngưỡng confidence (0-1), mặc định 0.5
     
     Returns:
         tuple: (is_xray: bool, confidence: float)
     """
     import torch
     from torchvision import transforms
-    import torch.nn.functional as F
     
     if model is None:
         return True, 1.0  # Nếu không có model, bỏ qua kiểm tra
@@ -130,8 +129,15 @@ def is_xray_image(model, image, threshold=0.7):
     # Predict
     with torch.no_grad():
         output = model(input_tensor)
-        probs = F.softmax(output, dim=1)
-        xray_prob = probs[0][0].item()  # Class 0 = X-ray phổi
+        
+        # Nếu model chỉ có 1 output (binary classification với sigmoid)
+        if output.shape[1] == 1:
+            xray_prob = torch.sigmoid(output[0][0]).item()
+        else:
+            # Multi-class với softmax
+            import torch.nn.functional as F
+            probs = F.softmax(output, dim=1)
+            xray_prob = probs[0][0].item()  # Class 0 = X-ray phổi
     
     is_xray = xray_prob >= threshold
     return is_xray, xray_prob
