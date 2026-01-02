@@ -185,6 +185,8 @@ def download_model_from_gdrive(model_name='pneumonia'):
     Args:
         model_name: 'pneumonia' hoặc 'xray_detector'
     """
+    import time
+    
     models_config = {
         'pneumonia': {
             'path': 'models/final_pneumonia_model.pth',
@@ -211,17 +213,25 @@ def download_model_from_gdrive(model_name='pneumonia'):
     file_id = config['file_id']
     url = f"https://drive.google.com/uc?id={file_id}"
     
+    # Tạo placeholder cho thông báo
+    status_placeholder = st.empty()
+    
     try:
         import gdown
-        st.info(f"📥 Đang tải {model_name} model từ Google Drive... ({config['size']}, vui lòng đợi)")
+        status_placeholder.info(f"📥 Đang tải {model_name} model từ Google Drive... ({config['size']}, vui lòng đợi)")
         gdown.download(url, model_path, quiet=False)
-        st.success(f"✅ Đã tải {model_name} model thành công!")
+        status_placeholder.success(f"✅ Đã tải {model_name} model thành công!")
+        
+        # Ẩn thông báo sau 15 giây
+        time.sleep(15)
+        status_placeholder.empty()
+        
         return model_path
     except ImportError:
-        st.error("❌ Thiếu thư viện gdown. Chạy: pip install gdown")
+        status_placeholder.error("❌ Thiếu thư viện gdown. Chạy: pip install gdown")
         return None
     except Exception as e:
-        st.error(f"❌ Lỗi khi tải {model_name} model: {e}")
+        status_placeholder.error(f"❌ Lỗi khi tải {model_name} model: {e}")
         return None
 
 def load_model():
