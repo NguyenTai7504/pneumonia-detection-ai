@@ -56,33 +56,41 @@ def load_xray_detector_model(model_path='models/xray_detector_resnet18_v2_BEST.p
     # Khởi tạo ResNet18
     model = models.resnet18(weights=None)
     
-    # Thử load model để xác định kiến trúc
+    # Load model để xác định kiến trúc
     try:
         state_dict = torch.load(model_path, map_location=torch.device('cpu'))
         
-        # Kiểm tra shape của classifier layer cuối
-        fc_weight_shape = state_dict['fc.weight'].shape if 'fc.weight' in state_dict else None
-        
-        if fc_weight_shape:
+        # Kiểm tra xem có phải fc layer đơn giản không
+        if 'fc.weight' in state_dict and 'fc.0.weight' not in state_dict:
+            # Classifier đơn giản: chỉ có 1 Linear layer
+            fc_weight_shape = state_dict['fc.weight'].shape
             num_classes = fc_weight_shape[0]
             num_ftrs = model.fc.in_features
+            model.fc = nn.Linear(num_ftrs, num_classes)
+            print(f"✅ Model xray detector: Simple Linear classifier ({num_classes} classes)")
+        
+        elif 'fc.0.weight' in state_dict:
+            # Classifier phức tạp: có Sequential
+            fc_weight_shape = state_dict['fc.0.weight'].shape
+            hidden_size = fc_weight_shape[0]
+            fc_last_weight_shape = state_dict['fc.3.weight'].shape
+            num_classes = fc_last_weight_shape[0]
+            num_ftrs = model.fc.in_features
             
-            # Tạo lại classifier với đúng số class
-            if num_classes == 2:
-                # Simple classifier
-                model.fc = nn.Linear(num_ftrs, 2)
-            else:
-                # Có thể có hidden layer
-                model.fc = nn.Sequential(
-                    nn.Linear(num_ftrs, 128),
-                    nn.ReLU(),
-                    nn.Dropout(0.3),
-                    nn.Linear(128, num_classes)
-                )
+            model.fc = nn.Sequential(
+                nn.Linear(num_ftrs, hidden_size),
+                nn.ReLU(),
+                nn.Dropout(0.3),
+                nn.Linear(hidden_size, num_classes)
+            )
+            print(f"✅ Model xray detector: Sequential classifier ({num_classes} classes)")
+        
+        else:
+            print("❌ Không nhận diện được kiến trúc model")
+            return None
         
         model.load_state_dict(state_dict)
         model.eval()
-        print(f"✅ Đã load model xray detector: {num_classes} classes")
         return model
         
     except Exception as e:
