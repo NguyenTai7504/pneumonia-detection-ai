@@ -10,6 +10,8 @@ import os
 
 # Import Grad-CAM từ utils (đã tối ưu)
 from utils.gradcam import GradCAM, show_cam_on_image
+# Import Image Validator (kiểm tra ảnh trùng và X-ray)
+from utils.image_validator import ImageValidator, load_xray_detector_model, is_xray_image
 
 # --- 2. CẤU HÌNH HỆ THỐNG ---
 st.set_page_config(
@@ -176,9 +178,28 @@ st.markdown("""
 
 # --- 3. LOAD MODEL ---
 @st.cache_resource
-def download_model_from_gdrive():
-    """Tự động tải model từ Google Drive nếu chưa có"""
-    model_path = 'models/final_pneumonia_model.pth'
+def download_model_from_gdrive(model_name='pneumonia'):
+    """
+    Tự động tải model từ Google Drive nếu chưa có
+    
+    Args:
+        model_name: 'pneumonia' hoặc 'xray_detector'
+    """
+    models_config = {
+        'pneumonia': {
+            'path': 'models/final_pneumonia_model.pth',
+            'file_id': '16apZUHgANtYPL6nKeqz8RlgG-1JFkJ9u',
+            'size': '90MB'
+        },
+        'xray_detector': {
+            'path': 'models/xray_detector_resnet18_v2_BEST.pth',
+            'file_id': '1UIGOdjrC5KBgmQPeBmu1YZdK32bi4b9Y',
+            'size': '45MB'
+        }
+    }
+    
+    config = models_config[model_name]
+    model_path = config['path']
     
     if os.path.exists(model_path):
         return model_path
@@ -186,26 +207,26 @@ def download_model_from_gdrive():
     # Tạo thư mục models
     os.makedirs('models', exist_ok=True)
     
-    # Google Drive File ID
-    file_id = "16apZUHgANtYPL6nKeqz8RlgG-1JFkJ9u"
+    # Google Drive URL
+    file_id = config['file_id']
     url = f"https://drive.google.com/uc?id={file_id}"
     
     try:
         import gdown
-        st.info("📥 Đang tải model từ Google Drive... (khoảng 90MB, vui lòng đợi)")
+        st.info(f"📥 Đang tải {model_name} model từ Google Drive... ({config['size']}, vui lòng đợi)")
         gdown.download(url, model_path, quiet=False)
-        st.success("✅ Đã tải model thành công!")
+        st.success(f"✅ Đã tải {model_name} model thành công!")
         return model_path
     except ImportError:
         st.error("❌ Thiếu thư viện gdown. Chạy: pip install gdown")
         return None
     except Exception as e:
-        st.error(f"❌ Lỗi khi tải model: {e}")
+        st.error(f"❌ Lỗi khi tải {model_name} model: {e}")
         return None
 
 def load_model():
     # Tự động tải model nếu chưa có
-    model_path = download_model_from_gdrive()
+    model_path = download_model_from_gdrive('pneumonia')
     
     if not model_path:
         st.error(f"❌ Không tìm thấy file model")
@@ -231,7 +252,16 @@ def load_model():
         st.error(f"Lỗi khi đọc file model: {e}")
         return None
 
-model = load_model()
+# Load models
+model = load_model()  # Pneumonia detection model
+
+# Load X-ray detector model
+xray_detector_path = download_model_from_gdrive('xray_detector')
+xray_detector = load_xray_detector_model(xray_detector_path) if xray_detector_path else None
+
+# Initialize image validator
+if 'image_validator' not in st.session_state:
+    st.session_state.image_validator = ImageValidator()
 
 # --- 4. HÀM XỬ LÝ ẢNH ---
 def process_image(image):
@@ -328,19 +358,44 @@ with col_left:
             image = Image.open(st.session_state['sample_image']).convert('RGB')
     
     if image:
-        st.image(image, caption="Ảnh X-quang đã chọn", use_container_width=True)
+        # BƯỚC 1: Kiểm tra ảnh trùng lặp
+        is_duplicate = st.session_state.image_validator.check_duplicate(image)
+        if is_duplicate:
+            st.warning("⚠️ **Ảnh này đã được phân tích trước đó!** Vui lòng chọn ảnh khác.")
+            image = None  # Ngăn không cho phân tích
         
-        # Advanced settings (minimized)
-        with st.expander("⚙️ Cài đặt nâng cao", expanded=False):
-            alpha = st.slider("Độ đậm heatmap", 0.3, 0.7, 0.5, 0.05)
-            show_probabilities = st.checkbox("Hiển thị xác suất dự đoán", value=True)
+        # BƯỚC 2: Kiểm tra có phải X-ray phổi không
+        if image and xray_detector:
+            with st.spinner("🔍 Đang kiểm tra loại ảnh..."):
+                is_xray, xray_confidence = is_xray_image(xray_detector, image, threshold=0.7)
+            
+            if not is_xray:
+                st.error(f"""
+                ❌ **Không phải ảnh X-quang phổi!**
+                
+                - Độ tin cậy đây là X-ray phổi: **{xray_confidence*100:.1f}%**
+                - Vui lòng upload ảnh X-quang ngực để phân tích
+                - Hệ thống chỉ hỗ trợ chẩn đoán viêm phổi từ ảnh X-ray
+                """)
+                image = None  # Ngăn không cho phân tích tiếp
         
-        if 'alpha' not in locals():
-            alpha = 0.5
-            show_probabilities = True
-        
-        st.markdown("<br>", unsafe_allow_html=True)
-        analyze_btn = st.button("🔍 Phân Tích", type="primary", use_container_width=True)
+        # BƯỚC 3: Hiển thị ảnh nếu hợp lệ
+        if image:
+            st.image(image, caption="Ảnh X-quang đã chọn", use_container_width=True)
+            
+            # Advanced settings (minimized)
+            with st.expander("⚙️ Cài đặt nâng cao", expanded=False):
+                alpha = st.slider("Độ đậm heatmap", 0.3, 0.7, 0.5, 0.05)
+                show_probabilities = st.checkbox("Hiển thị xác suất dự đoán", value=True)
+            
+            if 'alpha' not in locals():
+                alpha = 0.5
+                show_probabilities = True
+            
+            st.markdown("<br>", unsafe_allow_html=True)
+            analyze_btn = st.button("🔍 Phân Tích", type="primary", use_container_width=True)
+        else:
+            analyze_btn = False
     else:
         analyze_btn = False
         alpha = 0.5
