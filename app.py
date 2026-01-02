@@ -485,12 +485,6 @@ if image and analyze_btn and model:
                             st.metric("Bình thường", f"{prob_normal:.1f}%")
                         with col2:
                             st.metric("Viêm phổi", f"{prob_pneumonia:.1f}%")
-                        
-                        # Debug info
-                        with st.expander("🔍 Thông tin debug (cho developer)"):
-                            st.code(f"Raw outputs: {outputs[0].tolist()}")
-                            st.code(f"Softmax probs: [Normal={prob_normal:.2f}%, Pneumonia={prob_pneumonia:.2f}%]")
-                            st.code(f"Predicted class: {pred_class} ({'Pneumonia' if pred_class==1 else 'Normal'})")
                     
                     # NO Grad-CAM for normal cases
                     st.image(image, caption="Ảnh X-quang", use_container_width=True)
