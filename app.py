@@ -226,14 +226,31 @@ def download_model_from_gdrive(model_name='pneumonia'):
         # Download (output sẽ không hiển thị trên UI)
         gdown.download(url, model_path, quiet=True)
         
-        # Hiển thị thành công
-        status_placeholder.empty()
-        with status_placeholder.container():
-            st.success(f"✅ Đã tải {model_name} model thành công!")
+        # Lưu timestamp download xong
+        download_key = f'{model_name}_download_time'
+        st.session_state[download_key] = time.time()
         
-        # Giữ thông báo trong 1 phút 30 giây để người dùng thấy
-        time.sleep(90)
-        status_placeholder.empty()
+        # Hiển thị thành công với countdown và nút đóng
+        while True:
+            elapsed = time.time() - st.session_state[download_key]
+            remaining = int(90 - elapsed)
+            
+            # Nếu hết thời gian hoặc user đóng thông báo
+            if remaining <= 0 or st.session_state.get(f'{model_name}_dismissed', False):
+                status_placeholder.empty()
+                break
+            
+            # Hiển thị thông báo với countdown và nút đóng
+            with status_placeholder.container():
+                col1, col2 = st.columns([4, 1])
+                with col1:
+                    st.success(f"✅ Đã tải {model_name} model thành công! (Tự động ẩn sau {remaining}s)")
+                with col2:
+                    if st.button("✕ Đóng", key=f'close_{model_name}_{remaining}'):
+                        st.session_state[f'{model_name}_dismissed'] = True
+                        st.rerun()
+            
+            time.sleep(1)
         
         return model_path
     except ImportError:
