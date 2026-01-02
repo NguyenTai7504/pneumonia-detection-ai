@@ -231,8 +231,8 @@ def download_model_from_gdrive(model_name='pneumonia'):
         with status_placeholder.container():
             st.success(f"✅ Đã tải {model_name} model thành công!")
         
-        # Giữ thông báo trong 5 giây để người dùng thấy
-        time.sleep(5)
+        # Giữ thông báo trong 1 phút 30 giây để người dùng thấy
+        time.sleep(90)
         status_placeholder.empty()
         
         return model_path
